@@ -3,18 +3,6 @@ import { gql } from 'apollo-boost'
 import { useApolloClient } from '@apollo/react-hooks'
 
 
-const ALL_BOOKS = gql`
-{
-  allBooks  {
-    title
-    published
-    author {
-      name
-    }
-    genres
-  }
-}
-`
 const ALL_FILTERED_BOOKS = gql`
 query getAllBooks($genre: String!) {
   allBooks(genre: $genre)  {
@@ -27,53 +15,61 @@ query getAllBooks($genre: String!) {
   }
 }
 `
+const USER = gql`
+{
+  me {
+    favoriteGenre
+    }
+}
+`
 
-const Books = (props)  => {
+const Recommedations = (props)  => {
   const [books, setBooks] = useState(null)
-  const [genres, setGenres] = useState(null)
+  const [user, setUser] = useState(null)
   const client = useApolloClient()
   
-  
- 
   useEffect(() => {
-    initialize()
     
-   
+    getUserData()
   }, [])
   
-  const initialize = async() => {
+  const getUserData = async() => {
     const { data } = await client.query({
-      query: ALL_BOOKS
+      query: USER
     })
-    console.log( 'dataAllBooks: ', data.allBooks )
-    setBooks(data.allBooks)
-    const bookGenres = data.allBooks.map(b => b.genres)
-    const genreArray = [].concat.apply([], bookGenres)
-    const genreList = Array.from(new Set(genreArray))
-    // remove Duplicants from Array
-    setGenres(genreList)
+    setUser(data.me)
+  }
+  
+  const getRecommendations = async() => {
+    const userFavoriteGenre = user.favoriteGenre.toString().toLowerCase()
+    const { data } = await client.query({query: ALL_FILTERED_BOOKS,
+        variables: { genre: userFavoriteGenre },
+      });
+      
+      setBooks(data.allBooks)
   }
 
-  const filterBooks = async (g) => {
-    const { data } = await client.query({query: ALL_FILTERED_BOOKS,
-      variables: { genre: g },
-    });
-    setBooks(data.allBooks)
+  if (user === null){
+      console.log('user ei tiedossa') 
+  } else {
+      console.log('user tiedossa')
+    if (user.favoritegenre === null) {
+        console.log('genre ei tiedossa')
+    } else {
+        console.log(user.favoriteGenre)
+        getRecommendations()
+    }
   }
   
-  const removeFilter = async () => {
-    console.log('filteri poistettu')
-    initialize()
-  }
+
   
-  if (genres === null) {
-    return <div>loading...</div>
-  }
- 
   if (!books) {
     return <div>loading...</div>
   }
+  
 
+  
+ 
 
   if(books.author === null){
     return <div>loading...</div>
@@ -81,7 +77,7 @@ const Books = (props)  => {
 
   return (
     <div>
-      <h2>books</h2>
+       <h2>Recommended books</h2>
 
       <table>
         <tbody>
@@ -104,12 +100,8 @@ const Books = (props)  => {
           
         </tbody>
       </table>
-      {genres.map(g => 
-        <button onClick={() => filterBooks(g)} key={g}>{g}</button>
-      )}
-      <button onClick={() => removeFilter() }>All genres</button>
     </div>
   )
 }
 
-export default Books
+export default Recommedations
